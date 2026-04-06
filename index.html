@@ -101,42 +101,48 @@
         new QRCode(document.getElementById("qrcode"), window.location.href);
     }
 
-    // 调用 Gemini 翻译
+    // 调用 groq 翻译
     async function translateText(text, targetLang) {
-    // 【核心修复】使用最简单的加号拼接，确保网址格式 100% 正确
-    // 请确保这里的 GEMINI_API_KEY 变量里只存了 Key 字符串，没有多余斜杠
-    var url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="AIzaSyDEdaXsZInYGevMbtfLRBkAFEZ9seA1DuM";
-    
-    var payload = {
-        contents: [{
-            parts: [{
-                text: "Translate the following text to " + targetLang + ". Only return the translated result: " + text
-            }]
-        }]
+    // 【核心配置】直接填入你的 Groq Key
+    const GROQ_API_KEY = "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";
+    const url = "https://api.groq.com/openai/v1/chat/completions";
+
+    const payload = {
+        model: "llama-3.3-70b-versatile", // Groq 推荐的高性能模型
+        messages: [
+            {
+                role: "system",
+                content: `You are a professional translator. Translate to ${targetLang}. Return ONLY the translated text.`
+            },
+            {
+                role: "user",
+                content: text
+            }
+        ],
+        temperature: 0.1 // 越低越精准
     };
 
     try {
-        var response = await fetch(url, {
+        const response = await fetch(url, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Authorization": "Bearer " + GROQ_API_KEY,
+                "Content-Type": "application/json"
+            },
             body: JSON.stringify(payload)
         });
 
-        var data = await response.json();
+        const data = await response.json();
 
         if (response.status !== 200) {
-            console.error("Gemini 报错详情:", data);
-            // 如果报错，直接把错误信息显示在聊天框里，方便我们排查
-            return "[错误: " + (data.error ? data.error.message : response.status) + "]";
+            console.error("Groq 报错:", data);
+            return "[Groq 错误: " + (data.error ? data.error.message : response.status) + "]";
         }
 
-        // 成功拿回翻译
-        if (data.candidates && data.candidates[0].content.parts[0].text) {
-            return data.candidates[0].content.parts[0].text.trim();
-        }
-        return "[翻译结果为空]";
+        return data.choices[0].message.content.trim();
     } catch (e) {
-        return "[网络连接失败]";
+        console.error("网络异常:", e);
+        return "[网络连接超时]";
     }
 }
     // 处理并发送消息
