@@ -103,21 +103,38 @@
 
     // 调用 Gemini 翻译
     async function translateText(text, targetLang) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-        const prompt = `Translate this text to ${targetLang}. Only return the translated text: "${text}"`;
-        
-        try {
-            const response = await fetch(url, {
-                method: "POST",
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-            });
-            const data = await response.json();
-            return data.candidates[0].content.parts[0].text.trim();
-        } catch (e) {
-            console.error("翻译失败", e);
-            return "[翻译错误]";
+    // 修正后的官方标准网址
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    
+    const requestBody = {
+        contents: [{
+            parts: [{
+                text: `Translate this text to ${targetLang}. Only return the translated text: "${text}"`
+            }]
+        }]
+    };
+
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(requestBody)
+        });
+
+        const data = await response.json();
+
+        // 报错排查逻辑
+        if (response.status !== 200) {
+            console.error("Gemini 报错:", data);
+            return `[错误 ${response.status}: ${data.error ? data.error.message : '未知'}]`;
         }
+
+        return data.candidates[0].content.parts[0].text.trim();
+    } catch (e) {
+        console.error("网络请求失败:", e);
+        return "[翻译网络连接超时]";
     }
+}
 
     // 处理并发送消息
     async function processAndSend(rawText) {
