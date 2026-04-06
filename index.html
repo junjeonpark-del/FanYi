@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AI 实时翻译聊天室</title>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root { --bg: #121212; --msg-me: #007AFF; --msg-them: #333; --text: #fff; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; flex-direction: column; hieght: 100vh; overflow: hidden; }
+        #header { padding: 15px; background: #1f1f1f; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+        #chat-box { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; height: calc(100vh - 180px); }
+        .msg { max-width: 80%; padding: 10px 15px; border-radius: 18px; font-size: 18px; line-height: 1.4; }
+        .me { align-self: flex-end; background: var(--msg-me); border-bottom-right-radius: 2px; }
+        .them { align-self: flex-start; background: var(--msg-them); border-bottom-left-radius: 2px; }
+        .lang-tag { font-size: 10px; opacity: 0.6; display: block; margin-top: 5px; }
+        #controls { padding: 15px; background: #1f1f1f; display: flex; gap: 10px; align-items: center; }
+        input { flex: 1; background: #333; border: none; padding: 12px; border-radius: 20px; color: #fff; outline: none; }
+        button { background: #007AFF; border: none; color: #fff; padding: 10px 15px; border-radius: 50%; cursor: pointer; }
+        #mic-btn { width: 50px; height: 50px; font-size: 24px; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        #mic-btn.active { background: #ff3b30; transform: scale(1.1); box-shadow: 0 0 15px rgba(255,59,48,0.5); }
+        #qr-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+        select { background: #333; color: white; border: none; padding: 5px; border-radius: 5px; font-size: 12px; }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <div>
+        <select id="my-lang">
+            <option value="zh-CN">我讲中文</option>
+            <option value="ko-KR">한국어</option>
+            <option value="en-US">English</option>
+        </select>
+        <span> ➔ </span>
+        <select id="target-lang">
+            <option value="English">看英文</option>
+            <option value="Chinese">看中文</option>
+            <option value="Korean">看韩文</option>
+        </select>
+    </div>
+    <button onclick="showQR()" style="border-radius: 5px; font-size: 12px;">扫码加入</button>
+</div>
+
+<div id="chat-box"></div>
+
+<div id="controls">
+    <input type="text" id="text-input" placeholder="输入文字..." onkeypress="if(event.key==='Enter') sendText()">
+    <button id="mic-btn" onmousedown="startMic()" onmouseup="stopMic()" ontouchstart="startMic()" ontouchend="stopMic()">🎤</button>
+</div>
+
+<div id="qr-modal" onclick="this.style.display='none'">
+    <div id="qrcode" style="background: white; padding: 20px; border-radius: 10px;"></div>
+    <p style="margin-top: 20px;">让对方扫码加入房间</p>
+</div>
+
+<script>
+    // --- 配置区 (请填写你的信息) ---
+    const GEMINI_API_KEY = "AIzaSyCAmD0-PjlkoNUnkm6QpKwxvNKNUL4whJk";
+    const firebaseConfig = {
+        apiKey: "AIzaSyA6PDYEk7Epsu52maMlVSzzv5f_yMkcjFg",
+        authDomain: "fanyi-6e1bf.firebaseapp.com",
+        databaseURL: "https://fanyi-6e1bf-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "fanyi-6e1bf",
+        storageBucket: "fanyi-6e1bf.firebasestorage.app",
+        messagingSenderId: "794186472934",
+        appId: "1:794186472934:web:54c39fda3a6ec5fe84ca27",
+        measurementId: "G-P7K3JG97BJ"
+    };
+    // ----------------------------
+
+    // 初始化 Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    const roomId = window.location.hash || "#room_" + Math.random().toString(36).substr(2, 5);
+    window.location.hash = roomId;
+    const chatRef = database.ref('rooms/' + roomId.replace('#', ''));
+
+    // 语音识别初始化
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition;
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.onresult = (e) => {
+            const transcript = e.results[0][0].transcript;
+            processAndSend(transcript);
+        };
+        recognition.onerror = (e) => alert("麦克风出错: " + e.error);
+    } else {
+        alert("您的浏览器不支持语音识别，请使用 Chrome 或 Safari");
+    }
+
+    // 显示二维码
+    function showQR() {
+        document.getElementById('qr-modal').style.display = 'flex';
+        document.getElementById('qrcode').innerHTML = "";
+        new QRCode(document.getElementById("qrcode"), window.location.href);
+    }
+
+    // 调用 Gemini 翻译
+    async function translateText(text, targetLang) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+        const prompt = `Translate this text to ${targetLang}. Only return the translated text: "${text}"`;
+        
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+            const data = await response.json();
+            return data.candidates[0].content.parts[0].text.trim();
+        } catch (e) {
+            console.error("翻译失败", e);
+            return "[翻译错误]";
+        }
+    }
+
+    // 处理并发送消息
+    async function processAndSend(rawText) {
+        if (!rawText) return;
+        const targetLang = document.getElementById('target-lang').value;
+        const translated = await translateText(rawText, targetLang);
+        
+        chatRef.push({
+            senderId: localStorage.getItem('userId') || (localStorage.setItem('userId', Date.now()), Date.now()),
+            original: rawText,
+            translated: translated,
+            timestamp: Date.now()
+        });
+    }
+
+    function sendText() {
+        const input = document.getElementById('text-input');
+        processAndSend(input.value);
+        input.value = "";
+    }
+
+    function startMic() {
+        document.getElementById('mic-btn').classList.add('active');
+        recognition.lang = document.getElementById('my-lang').value;
+        recognition.start();
+    }
+
+    function stopMic() {
+        document.getElementById('mic-btn').classList.remove('active');
+        recognition.stop();
+    }
+
+    // 监听新消息
+    chatRef.limitToLast(20).on('child_added', (snapshot) => {
+        const data = snapshot.val();
+        const box = document.getElementById('chat-box');
+        const isMe = data.senderId == localStorage.getItem('userId');
+        
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `msg ${isMe ? 'me' : 'them'}`;
+        msgDiv.innerHTML = `
+            ${data.translated}
+            <span class="lang-tag">${data.original}</span>
+        `;
+        box.appendChild(msgDiv);
+        box.scrollTop = box.scrollHeight;
+    });
+</script>
+</body>
+</html>
