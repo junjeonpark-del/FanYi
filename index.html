@@ -127,9 +127,13 @@ input { flex: 1; } /* 让输入框占满横向剩余空间 */
     <button id="mic-btn" onmousedown="startMic()" onmouseup="stopMic()" ontouchstart="startMic()" ontouchend="stopMic()">🎤</button>
 </div>
 
-<div id="qr-modal" onclick="this.style.display='none'">
+<div id="qr-modal" onclick="this.style.display='none'" 
+     style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; 
+            background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center; flex-direction:column;">
+    
     <div id="qrcode" style="background: white; padding: 20px; border-radius: 10px;"></div>
-    <p style="margin-top: 20px;">让对方扫码加入房间</p>
+    <p style="margin-top: 20px; color: white; font-weight: bold;">让对方扫码加入房间</p>
+    <p style="color: #ccc; font-size: 12px;">(点击屏幕任何地方关闭)</p>
 </div>
 
     
@@ -197,21 +201,13 @@ function stopMic() {
     }
 }
     // --- 3. 二维码功能 (找回来了！) ---
-    function showQR() {
-        // 让弹窗显示出来
-        document.getElementById('qr-modal').style.display = 'flex';
-        // 清空旧的二维码
-        document.getElementById('qrcode').innerHTML = "";
-        // 生成新的二维码，指向当前页面的 URL
-        new QRCode(document.getElementById("qrcode"), {
-            text: window.location.href,
-            width: 200,
-            height: 200,
-            colorDark : "#000000",
-            colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.H
-        });
-    }
+function showQR() {
+    // 1. 让弹窗显示出来（flex 配合上面的居中样式）
+    document.getElementById('qr-modal').style.display = 'flex';
+    // 2. 清空并生成
+    document.getElementById('qrcode').innerHTML = "";
+    new QRCode(document.getElementById("qrcode"), window.location.href);
+}
 
     // --- 4. 翻译逻辑 (Groq API) ---
     async function translateText(text, targetLang) {
