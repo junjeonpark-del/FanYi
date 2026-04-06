@@ -134,7 +134,7 @@ input { flex: 1; } /* 让输入框占满横向剩余空间 */
 
     
 <script>
-    let recognition;
+    var recognition;
     // --- 1. Firebase 配置 (保持不变) ---
     const firebaseConfig = {
         apiKey: "AIzaSyA6PDYEk7Epsu52maMlVSzzv5f_yMkcjFg",
@@ -153,38 +153,49 @@ input { flex: 1; } /* 让输入框占满横向剩余空间 */
     window.location.hash = roomId;
     const chatRef = database.ref('rooms/' + roomId.replace('#', ''));
 
-    // --- 2. 语音识别 (全局变量) ---
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+   // --- 2. 语音识别 (适配 Safari + 修复双重发送) ---
 
-    if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-
-        recognition.onresult = (event) => {
-            const text = event.results[0][0].transcript;
-            document.getElementById('text-input').value = text; // 匹配你的 HTML ID
-        };
-
-        recognition.onstart = () => {
-            document.getElementById('mic-btn').innerHTML = "🔴";
-        };
-
-        recognition.onend = () => {
-            document.getElementById('mic-btn').innerHTML = "🎤";
-        };
+function startMic() {
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        alert("浏览器不支持语音，请用 Safari 或 Chrome");
+        return;
     }
 
-    function startMic() {
-        if (!recognition) return alert("浏览器不支持语音");
-        recognition.lang = document.getElementById('my-lang').value;
-        try { recognition.start(); } catch(e) {}
-    }
+    // 【关键】每次按下按钮都重新创建录音机，Safari 才会听话
+    recognition = new SpeechRecognition();
+    recognition.lang = document.getElementById('my-lang').value;
+    recognition.continuous = false;
+    recognition.interimResults = false;
 
-    function stopMic() {
-        if (recognition) recognition.stop();
-    }
+    // 录音开始
+    recognition.onstart = function() {
+        document.getElementById('mic-btn').innerHTML = "🔴";
+    };
 
+    // 录音结果：只把字写进输入框，不自动发送
+    recognition.onresult = function(event) {
+        var text = event.results[0][0].transcript;
+        document.getElementById('text-input').value = text;
+    };
+
+    // 录音结束
+    recognition.onend = function() {
+        document.getElementById('mic-btn').innerHTML = "🎤";
+    };
+
+    try {
+        recognition.start();
+    } catch (e) {
+        console.log("语音启动失败:", e);
+    }
+}
+
+function stopMic() {
+    if (recognition) {
+        recognition.stop();
+    }
+}
     // --- 3. 二维码功能 (找回来了！) ---
     function showQR() {
         // 让弹窗显示出来
