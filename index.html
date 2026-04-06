@@ -266,22 +266,6 @@ function stopMic() {
         input.value = "";
     }
 
-    chatRef.limitToLast(20).on('child_added', (snapshot) => {
-        const data = snapshot.val();
-        const box = document.getElementById('chat-box');
-        const userId = localStorage.getItem('userId');
-        const isMe = data.senderId == userId;
-        
-        const msgDiv = document.createElement('div');
-        msgDiv.className = `msg ${isMe ? 'me' : 'them'}`;
-        msgDiv.innerHTML = `
-            ${data.translated}
-            <span class="lang-tag">${data.original}</span>
-        `;
-        box.appendChild(msgDiv);
-        box.scrollTop = box.scrollHeight;
-    });
-
 // --- 6. 实时监听新消息 (核心：让聊天动起来) ---
     chatRef.limitToLast(20).on('child_added', (snapshot) => {
         const data = snapshot.val();
