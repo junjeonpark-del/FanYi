@@ -154,44 +154,42 @@ input { flex: 1; } /* 让输入框占满横向剩余空间 */
     window.location.hash = roomId;
     const chatRef = database.ref('rooms/' + roomId.replace('#', ''));
 
-// 157. 语音识别逻辑
+    //语音识别
 function startVoice() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
     if (!SpeechRecognition) {
-        alert("您的浏览器不支持语音识别，请使用 Chrome 或 Safari");
+        alert("浏览器不支持语音识别，请换用 Chrome 或 Safari");
         return;
     }
 
     const recognition = new SpeechRecognition();
     
-    // 【关键优化】自动读取你选择的语言
-    // 假设你的选择框 id 是 'my-lang'
-    const selectedLang = document.getElementById('my-lang').value;
-    recognition.lang = selectedLang; 
-
+    // 动态获取当前选择的语言
+    const langSelect = document.getElementById('my-lang');
+    recognition.lang = langSelect ? langSelect.value : 'zh-CN'; 
+    
     recognition.continuous = false;
     recognition.interimResults = false;
 
     recognition.onstart = () => {
-        // 让麦克风按钮变色或文字提醒，让用户知道“正在听”
         const btn = document.getElementById('voice-btn');
-        if(btn) btn.innerHTML = "🔴 正在录音...";
+        if(btn) btn.innerHTML = "🔴 正在听...";
     };
 
     recognition.onresult = (e) => {
-        const transcript = e.results[0][0].transcript;
-        // 把识别到的文字填入输入框
-        document.getElementById('message-input').value = transcript;
-        
-        // 如果你想识别完直接发送，可以取消下面这一行的注释
-        // processAndSend(transcript); 
+        const text = e.results[0][0].transcript;
+        const input = document.getElementById('message-input');
+        if(input) {
+            input.value = text;
+            input.focus(); // 识别完自动聚焦，方便修改
+        }
     };
 
     recognition.onerror = (e) => {
-        console.error("语音错误:", e.error);
-        if (e.error === 'not-allowed') alert("请开启麦克风权限！");
-        else alert("麦克风出错: " + e.error);
+        // 过滤掉 Safari 常见的 aborted 干扰报错
+        if (e.error !== 'aborted') {
+            alert("语音识别提醒: " + e.error);
+        }
     };
 
     recognition.onend = () => {
@@ -199,6 +197,7 @@ function startVoice() {
         if(btn) btn.innerHTML = "🎤";
     };
 
+    // 关键：必须由点击事件直接触发 start()
     recognition.start();
 }
 
