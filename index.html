@@ -154,7 +154,6 @@ input { flex: 1; } /* 让输入框占满横向剩余空间 */
     const chatRef = database.ref('rooms/' + roomId.replace('#', ''));
 
     // --- 2. 语音识别 (全局变量) ---
-    let recognition;
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (SpeechRecognition) {
