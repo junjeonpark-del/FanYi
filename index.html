@@ -103,35 +103,34 @@
 
     // 调用 Gemini 翻译
     async function translateText(text, targetLang) {
-    // 1. 构造网址
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + GEMINI_API_KEY;
+    // 【修改点】请直接把你那串 AIza... 开头的 Key 粘贴到下面的引号里，替换掉 [这里填你的KEY]
+    // 注意：不要删掉前面的 key=，也不要删掉两边的双引号
+    var url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=[AIzaSyBWIoso7WKzN2U_soBKR5fM5JOx5PIO5fM]";
     
-    // 2. 构造请求内容
-    const requestBody = {
+    var requestBody = {
         contents: [{
             parts: [{
-                text: "Translate the following text to " + targetLang + ". Only return the translated result: " + text
+                text: "Translate the following to " + targetLang + ": " + text
             }]
         }]
     };
 
     try {
-        const response = await fetch(url, {
+        var response = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(requestBody)
         });
 
-        const data = await response.json();
+        var data = await response.json();
 
         if (response.status !== 200) {
-            console.error("Gemini 报错:", data);
+            console.error("Gemini 详情:", data);
             return "[错误: " + (data.error ? data.error.message : response.status) + "]";
         }
 
         return data.candidates[0].content.parts[0].text.trim();
     } catch (e) {
-        console.error("网络异常:", e);
         return "[网络连接失败]";
     }
 }
