@@ -156,49 +156,48 @@ input { flex: 1; } /* 让输入框占满横向剩余空间 */
 
 // 157. 语音识别逻辑
 function startVoice() {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    // 1. 使用 var 防止在不同地方重复 const 声明导致报错
+    var Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
-    if (!SpeechRecognition) {
-        alert("您的浏览器不支持语音识别，请使用 Chrome 或 Safari");
+    if (!Recognition) {
+        alert("浏览器不支持语音识别");
         return;
     }
 
-    const recognition = new SpeechRecognition();
+    // 每次点都新建，这是最稳妥的
+    var recognition = new Recognition();
     
-    // 【关键优化】自动读取你选择的语言
-    // 假设你的选择框 id 是 'my-lang'
-    const selectedLang = document.getElementById('my-lang').value;
-    recognition.lang = selectedLang; 
+    // 2. 这里的 ID 必须精准对应
+    var langEl = document.getElementById('my-lang');
+    recognition.lang = langEl ? langEl.value : 'zh-CN'; 
 
     recognition.continuous = false;
     recognition.interimResults = false;
 
-    recognition.onstart = () => {
-        // 让麦克风按钮变色或文字提醒，让用户知道“正在听”
-        const btn = document.getElementById('voice-btn');
-        if(btn) btn.innerHTML = "🔴 正在录音...";
+    // 3. 状态反馈
+    var btn = document.getElementById('voice-btn');
+    recognition.onstart = function() {
+        if(btn) btn.innerHTML = "🔴";
     };
 
-    recognition.onresult = (e) => {
-        const transcript = e.results[0][0].transcript;
-        // 把识别到的文字填入输入框
-        document.getElementById('message-input').value = transcript;
-        
-        // 如果你想识别完直接发送，可以取消下面这一行的注释
-        // processAndSend(transcript); 
+    recognition.onresult = function(e) {
+        var text = e.results[0][0].transcript;
+        var input = document.getElementById('message-input');
+        if(input) input.value = text;
     };
 
-    recognition.onerror = (e) => {
-        console.error("语音错误:", e.error);
-        if (e.error === 'not-allowed') alert("请开启麦克风权限！");
-        else alert("麦克风出错: " + e.error);
+    recognition.onerror = function(e) {
+        // 只有非中止的错误才弹窗，减少干扰
+        if (e.error !== 'aborted') {
+            alert("语音错误: " + e.error);
+        }
     };
 
-    recognition.onend = () => {
-        const btn = document.getElementById('voice-btn');
+    recognition.onend = function() {
         if(btn) btn.innerHTML = "🎤";
     };
 
+    // 4. 立即启动
     recognition.start();
 }
 
