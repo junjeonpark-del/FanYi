@@ -106,7 +106,7 @@
     // 确保这里的 GEMINI_API_KEY 是你申请的那串 AIza...
     // 注意：有些旧版 Key 可能只支持 gemini-pro，我们这里换成兼容性最强的模型名
     const model = "gemini-1.5-flash"; 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
     
     const requestBody = {
         contents: [{
