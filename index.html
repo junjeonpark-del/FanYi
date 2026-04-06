@@ -132,6 +132,7 @@ input { flex: 1; } /* 让输入框占满横向剩余空间 */
     <p style="margin-top: 20px;">让对方扫码加入房间</p>
 </div>
 
+let recognition;
     
 <script>
     // --- 配置区 (请填写你的信息) ---
@@ -156,8 +157,6 @@ input { flex: 1; } /* 让输入框占满横向剩余空间 */
     const chatRef = database.ref('rooms/' + roomId.replace('#', ''));
 
 // 157. 语音识别逻辑
-// 1. 定义全局变量，确保按下和松开都能访问到同一个对象
-let recognition; 
 
 // 2. 按下按钮时触发：开始录音
 function startMic() {
