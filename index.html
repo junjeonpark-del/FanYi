@@ -58,7 +58,7 @@
 
 <script>
     // --- 配置区 (请填写你的信息) ---
-    const GEMINI_API_KEY = "AIzaSyCAmD0-PjlkoNUnkm6QpKwxvNKNUL4whJk";
+    const GEMINI_API_KEY = "AIzaSyBWIoso7WKzN2U_soBKR5fM5JOx5PIO5fM";
     const firebaseConfig = {
         apiKey: "AIzaSyA6PDYEk7Epsu52maMlVSzzv5f_yMkcjFg",
         authDomain: "fanyi-6e1bf.firebaseapp.com",
@@ -103,13 +103,17 @@
 
     // 调用 Gemini 翻译
     async function translateText(text, targetLang) {
-    // 修正后的官方标准网址
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    // 确保这里的 GEMINI_API_KEY 是你申请的那串 AIza...
+    // 注意：有些旧版 Key 可能只支持 gemini-pro，我们这里换成兼容性最强的模型名
+    const model = "gemini-1.5-flash"; 
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
     
     const requestBody = {
         contents: [{
             parts: [{
-                text: `Translate this text to ${targetLang}. Only return the translated text: "${text}"`
+                text: `You are a professional translator. Translate the following text to ${targetLang}. 
+                       Output only the translated text, no explanations.
+                       Text: "${text}"`
             }]
         }]
     };
@@ -117,25 +121,33 @@
     try {
         const response = await fetch(url, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json"
+            },
             body: JSON.stringify(requestBody)
         });
 
         const data = await response.json();
 
-        // 报错排查逻辑
         if (response.status !== 200) {
-            console.error("Gemini 报错:", data);
-            return `[错误 ${response.status}: ${data.error ? data.error.message : '未知'}]`;
+            console.error("Gemini 官方报错内容:", data);
+            // 如果是 404，通常是模型名不对或者网址拼错了
+            if (response.status === 404) return "[错误 404: 请检查 API 地址或模型名]";
+            if (response.status === 403) return "[错误 403: API Key 无权使用此模型]";
+            return `[API 错误: ${data.error ? data.error.message : '未知原因'}]`;
         }
 
-        return data.candidates[0].content.parts[0].text.trim();
+        // 成功获取翻译结果
+        if (data.candidates && data.candidates[0].content.parts[0].text) {
+            return data.candidates[0].content.parts[0].text.trim();
+        } else {
+            return "[翻译结果为空，请重试]";
+        }
     } catch (e) {
-        console.error("网络请求失败:", e);
-        return "[翻译网络连接超时]";
+        console.error("网络连接异常:", e);
+        return "[网络错误: 无法连接到谷歌翻译服务器]";
     }
 }
-
     // 处理并发送消息
     async function processAndSend(rawText) {
         if (!rawText) return;
