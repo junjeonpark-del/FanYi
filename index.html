@@ -132,6 +132,7 @@ input { flex: 1; } /* 让输入框占满横向剩余空间 */
     <p style="margin-top: 20px;">让对方扫码加入房间</p>
 </div>
 
+    
 <script>
     // --- 配置区 (请填写你的信息) ---
     const GEMINI_API_KEY = "";
@@ -155,52 +156,50 @@ input { flex: 1; } /* 让输入框占满横向剩余空间 */
     const chatRef = database.ref('rooms/' + roomId.replace('#', ''));
 
 // 157. 语音识别逻辑
-function startVoice() {
-    // 1. 使用 var 防止在不同地方重复 const 声明导致报错
-    var Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    
-    if (!Recognition) {
-        alert("浏览器不支持语音识别");
+// 1. 定义全局变量，确保按下和松开都能访问到同一个对象
+let recognition; 
+
+// 2. 按下按钮时触发：开始录音
+function startMic() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        alert("浏览器不支持语音");
         return;
     }
 
-    // 每次点都新建，这是最稳妥的
-    var recognition = new Recognition();
+    // 创建实例
+    recognition = new SpeechRecognition();
     
-    // 2. 这里的 ID 必须精准对应
-    var langEl = document.getElementById('my-lang');
-    recognition.lang = langEl ? langEl.value : 'zh-CN'; 
+    // 获取当前语言
+    const langSelect = document.getElementById('my-lang');
+    recognition.lang = langSelect ? langSelect.value : 'zh-CN';
 
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    // 3. 状态反馈
-    var btn = document.getElementById('voice-btn');
-    recognition.onstart = function() {
-        if(btn) btn.innerHTML = "🔴";
+    recognition.onstart = () => {
+        const btn = document.getElementById('voice-btn');
+        if(btn) btn.innerHTML = "🔴 录音中";
     };
 
-    recognition.onresult = function(e) {
-        var text = e.results[0][0].transcript;
-        var input = document.getElementById('message-input');
-        if(input) input.value = text;
+    recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        document.getElementById('message-input').value = text;
     };
 
-    recognition.onerror = function(e) {
-        // 只有非中止的错误才弹窗，减少干扰
-        if (e.error !== 'aborted') {
-            alert("语音错误: " + e.error);
-        }
+    recognition.onerror = (e) => {
+        console.error("语音错误:", e.error);
     };
 
-    recognition.onend = function() {
-        if(btn) btn.innerHTML = "🎤";
-    };
-
-    // 4. 立即启动
+    // 启动
     recognition.start();
 }
 
+// 3. 松开按钮时触发：停止录音
+function stopMic() {
+    if (recognition) {
+        recognition.stop();
+        const btn = document.getElementById('voice-btn');
+        if(btn) btn.innerHTML = "🎤";
+    }
+}
     // 显示二维码
     function showQR() {
         document.getElementById('qr-modal').style.display = 'flex';
