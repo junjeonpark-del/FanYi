@@ -154,21 +154,53 @@ input { flex: 1; } /* 让输入框占满横向剩余空间 */
     window.location.hash = roomId;
     const chatRef = database.ref('rooms/' + roomId.replace('#', ''));
 
-    // 语音识别初始化
+// 157. 语音识别逻辑
+function startVoice() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition;
-    if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.onresult = (e) => {
-            const transcript = e.results[0][0].transcript;
-            processAndSend(transcript);
-        };
-        recognition.onerror = (e) => alert("麦克风出错: " + e.error);
-    } else {
+    
+    if (!SpeechRecognition) {
         alert("您的浏览器不支持语音识别，请使用 Chrome 或 Safari");
+        return;
     }
+
+    const recognition = new SpeechRecognition();
+    
+    // 【关键优化】自动读取你选择的语言
+    // 假设你的选择框 id 是 'my-lang'
+    const selectedLang = document.getElementById('my-lang').value;
+    recognition.lang = selectedLang; 
+
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    recognition.onstart = () => {
+        // 让麦克风按钮变色或文字提醒，让用户知道“正在听”
+        const btn = document.getElementById('voice-btn');
+        if(btn) btn.innerHTML = "🔴 正在录音...";
+    };
+
+    recognition.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        // 把识别到的文字填入输入框
+        document.getElementById('message-input').value = transcript;
+        
+        // 如果你想识别完直接发送，可以取消下面这一行的注释
+        // processAndSend(transcript); 
+    };
+
+    recognition.onerror = (e) => {
+        console.error("语音错误:", e.error);
+        if (e.error === 'not-allowed') alert("请开启麦克风权限！");
+        else alert("麦克风出错: " + e.error);
+    };
+
+    recognition.onend = () => {
+        const btn = document.getElementById('voice-btn');
+        if(btn) btn.innerHTML = "🎤";
+    };
+
+    recognition.start();
+}
 
     // 显示二维码
     function showQR() {
