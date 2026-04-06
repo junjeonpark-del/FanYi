@@ -154,26 +154,34 @@ input { flex: 1; } /* 让输入框占满横向剩余空间 */
     window.location.hash = roomId;
     const chatRef = database.ref('rooms/' + roomId.replace('#', ''));
 
-    //语音识别
+   // --- 语音识别核心函数 ---
 function startVoice() {
+    // 兼容性前缀处理
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
     if (!SpeechRecognition) {
-        alert("浏览器不支持语音识别，请换用 Chrome 或 Safari");
+        alert("您的浏览器不支持语音识别，请换用 Chrome 或 Safari");
         return;
     }
 
+    // 每次点击时创建新实例，防止 Safari 的 aborted 报错
     const recognition = new SpeechRecognition();
     
-    // 动态获取当前选择的语言
+    // 获取当前选择的语言 (确保你的 select 标签 id 是 my-lang)
     const langSelect = document.getElementById('my-lang');
     recognition.lang = langSelect ? langSelect.value : 'zh-CN'; 
     
     recognition.continuous = false;
     recognition.interimResults = false;
 
+    // 状态反馈：按钮变色
+    const btn = document.getElementById('voice-btn');
+
     recognition.onstart = () => {
-        const btn = document.getElementById('voice-btn');
-        if(btn) btn.innerHTML = "🔴 正在听...";
+        if(btn) {
+            btn.innerHTML = "🔴 正在听...";
+            btn.style.opacity = "0.5"; // 视觉反馈：变淡表示工作中
+        }
     };
 
     recognition.onresult = (e) => {
@@ -181,24 +189,31 @@ function startVoice() {
         const input = document.getElementById('message-input');
         if(input) {
             input.value = text;
-            input.focus(); // 识别完自动聚焦，方便修改
+            input.focus();
         }
     };
 
     recognition.onerror = (e) => {
-        // 过滤掉 Safari 常见的 aborted 干扰报错
+        console.error("语音错误:", e.error);
+        // 屏蔽掉 Safari 常见的无意义中断报错
         if (e.error !== 'aborted') {
-            alert("语音识别提醒: " + e.error);
+            alert("语音提醒: " + e.error);
         }
     };
 
     recognition.onend = () => {
-        const btn = document.getElementById('voice-btn');
-        if(btn) btn.innerHTML = "🎤";
+        if(btn) {
+            btn.innerHTML = "🎤";
+            btn.style.opacity = "1";
+        }
     };
 
-    // 关键：必须由点击事件直接触发 start()
-    recognition.start();
+    // 启动识别
+    try {
+        recognition.start();
+    } catch (err) {
+        console.error("启动失败:", err);
+    }
 }
 
     // 显示二维码
