@@ -135,8 +135,7 @@ input { flex: 1; } /* 让输入框占满横向剩余空间 */
 let recognition;
     
 <script>
-    // --- 配置区 (请填写你的信息) ---
-    const GEMINI_API_KEY = "";
+    // --- 1. Firebase 配置 (保持不变) ---
     const firebaseConfig = {
         apiKey: "AIzaSyA6PDYEk7Epsu52maMlVSzzv5f_yMkcjFg",
         authDomain: "fanyi-6e1bf.firebaseapp.com",
@@ -147,113 +146,100 @@ let recognition;
         appId: "1:794186472934:web:54c39fda3a6ec5fe84ca27",
         measurementId: "G-P7K3JG97BJ"
     };
-    // ----------------------------
 
-    // 初始化 Firebase
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
     const roomId = window.location.hash || "#room_" + Math.random().toString(36).substr(2, 5);
     window.location.hash = roomId;
     const chatRef = database.ref('rooms/' + roomId.replace('#', ''));
 
-// 157. 语音识别逻辑
-
-// 2. 按下按钮时触发：开始录音
-function startMic() {
+    // --- 2. 语音识别 (全局变量) ---
+    let recognition;
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-        alert("浏览器不支持语音");
-        return;
+
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        recognition.onresult = (event) => {
+            const text = event.results[0][0].transcript;
+            document.getElementById('text-input').value = text; // 匹配你的 HTML ID
+        };
+
+        recognition.onstart = () => {
+            document.getElementById('mic-btn').innerHTML = "🔴";
+        };
+
+        recognition.onend = () => {
+            document.getElementById('mic-btn').innerHTML = "🎤";
+        };
     }
 
-    // 创建实例
-    recognition = new SpeechRecognition();
-    
-    // 获取当前语言
-    const langSelect = document.getElementById('my-lang');
-    recognition.lang = langSelect ? langSelect.value : 'zh-CN';
-
-    recognition.onstart = () => {
-        const btn = document.getElementById('voice-btn');
-        if(btn) btn.innerHTML = "🔴 录音中";
-    };
-
-    recognition.onresult = (event) => {
-        const text = event.results[0][0].transcript;
-        document.getElementById('message-input').value = text;
-    };
-
-    recognition.onerror = (e) => {
-        console.error("语音错误:", e.error);
-    };
-
-    // 启动
-    recognition.start();
-}
-
-// 3. 松开按钮时触发：停止录音
-function stopMic() {
-    if (recognition) {
-        recognition.stop();
-        const btn = document.getElementById('voice-btn');
-        if(btn) btn.innerHTML = "🎤";
+    function startMic() {
+        if (!recognition) return alert("浏览器不支持语音");
+        recognition.lang = document.getElementById('my-lang').value;
+        try { recognition.start(); } catch(e) {}
     }
-}
-    // 显示二维码
+
+    function stopMic() {
+        if (recognition) recognition.stop();
+    }
+
+    // --- 3. 二维码功能 (找回来了！) ---
     function showQR() {
+        // 让弹窗显示出来
         document.getElementById('qr-modal').style.display = 'flex';
+        // 清空旧的二维码
         document.getElementById('qrcode').innerHTML = "";
-        new QRCode(document.getElementById("qrcode"), window.location.href);
-    }
-
-    // 调用 groq 翻译
-    async function translateText(text, targetLang) {
-    // 【核心配置】直接填入你的 Groq Key
-    const GROQ_API_KEY = "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";
-    const url = "https://api.groq.com/openai/v1/chat/completions";
-
-    const payload = {
-        model: "llama-3.3-70b-versatile", // Groq 推荐的高性能模型
-        messages: [
-            {
-                role: "system",
-                content: `You are a professional translator. Translate to ${targetLang}. Return ONLY the translated text.`
-            },
-            {
-                role: "user",
-                content: text
-            }
-        ],
-        temperature: 0.1 // 越低越精准
-    };
-
-    try {
-        const response = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Authorization": "Bearer " + GROQ_API_KEY,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
+        // 生成新的二维码，指向当前页面的 URL
+        new QRCode(document.getElementById("qrcode"), {
+            text: window.location.href,
+            width: 200,
+            height: 200,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
         });
-
-        const data = await response.json();
-
-        if (response.status !== 200) {
-            console.error("Groq 报错:", data);
-            return "[Groq 错误: " + (data.error ? data.error.message : response.status) + "]";
-        }
-
-        return data.choices[0].message.content.trim();
-    } catch (e) {
-        console.error("网络异常:", e);
-        return "[网络连接超时]";
     }
-}
-    // 处理并发送消息
+
+    // --- 4. 翻译逻辑 (Groq API) ---
+    async function translateText(text, targetLang) {
+        const GROQ_API_KEY = "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";
+        const url = "https://api.groq.com/openai/v1/chat/completions";
+        const payload = {
+            model: "llama-3.3-70b-versatile",
+            messages: [
+                { role: "system", content: `You are a professional translator. Translate to ${targetLang}. Return ONLY the translated text.` },
+                { role: "user", content: text }
+            ],
+            temperature: 0.1
+        };
+
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Authorization": "Bearer " + GROQ_API_KEY,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await response.json();
+            return data.choices[0].message.content.trim();
+        } catch (e) {
+            return "[翻译出错]";
+        }
+    }
+
+    // --- 5. 发送与消息展示 ---
     async function processAndSend(rawText) {
         if (!rawText) return;
-        const targetLang = document.getElementById('target-lang').value;
+        const targetValue = document.getElementById('target-lang').value; 
+        // 映射下拉框的值到 Groq 识别的语言名
+        const langMap = { "English": "English", "Chinese": "Chinese", "Korean": "Korean" };
+        const targetLang = langMap[targetValue] || targetValue;
+
         const translated = await translateText(rawText, targetLang);
         
         chatRef.push({
@@ -270,22 +256,11 @@ function stopMic() {
         input.value = "";
     }
 
-    function startMic() {
-        document.getElementById('mic-btn').classList.add('active');
-        recognition.lang = document.getElementById('my-lang').value;
-        recognition.start();
-    }
-
-    function stopMic() {
-        document.getElementById('mic-btn').classList.remove('active');
-        recognition.stop();
-    }
-
-    // 监听新消息
     chatRef.limitToLast(20).on('child_added', (snapshot) => {
         const data = snapshot.val();
         const box = document.getElementById('chat-box');
-        const isMe = data.senderId == localStorage.getItem('userId');
+        const userId = localStorage.getItem('userId');
+        const isMe = data.senderId == userId;
         
         const msgDiv = document.createElement('div');
         msgDiv.className = `msg ${isMe ? 'me' : 'them'}`;
@@ -293,6 +268,36 @@ function stopMic() {
             ${data.translated}
             <span class="lang-tag">${data.original}</span>
         `;
+        box.appendChild(msgDiv);
+        box.scrollTop = box.scrollHeight;
+    });
+
+// --- 6. 实时监听新消息 (核心：让聊天动起来) ---
+    chatRef.limitToLast(20).on('child_added', (snapshot) => {
+        const data = snapshot.val();
+        const box = document.getElementById('chat-box');
+        
+        // 获取或生成自己的 ID
+        let userId = localStorage.getItem('userId');
+        if (!userId) {
+            userId = Date.now().toString();
+            localStorage.setItem('userId', userId);
+        }
+        
+        const isMe = data.senderId == userId;
+        
+        // 创建消息气泡
+        const msgDiv = document.createElement('div');
+        // 根据是不是自己发的，应用不同的 CSS 类（me 或 them）
+        msgDiv.className = `msg ${isMe ? 'me' : 'them'}`;
+        
+        // 气泡内部：翻译的大字 + 原文的小字
+        msgDiv.innerHTML = `
+            ${data.translated}
+            <span class="lang-tag">${data.original}</span>
+        `;
+        
+        // 添加到聊天框并自动滚动到底部
         box.appendChild(msgDiv);
         box.scrollTop = box.scrollHeight;
     });
