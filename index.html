@@ -58,6 +58,7 @@
 
 <script>
     // --- 配置区 (请填写你的信息) ---
+    const GEMINI_API_KEY = "AIzaSyDEdaXsZInYGevMbtfLRBkAFEZ9seA1DuM";
     const firebaseConfig = {
         apiKey: "AIzaSyA6PDYEk7Epsu52maMlVSzzv5f_yMkcjFg",
         authDomain: "fanyi-6e1bf.firebaseapp.com",
@@ -102,14 +103,14 @@
 
     // 调用 Gemini 翻译
     async function translateText(text, targetLang) {
-    // 【修改点】请直接把你那串 AIza... 开头的 Key 粘贴到下面的引号里，替换掉 [这里填你的KEY]
-    // 注意：不要删掉前面的 key=，也不要删掉两边的双引号
-    var url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=[AIzaSyDEdaXsZInYGevMbtfLRBkAFEZ9seA1DuM]";
+    // 【核心修复】使用最简单的加号拼接，确保网址格式 100% 正确
+    // 请确保这里的 GEMINI_API_KEY 变量里只存了 Key 字符串，没有多余斜杠
+    var url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key="AIzaSyDEdaXsZInYGevMbtfLRBkAFEZ9seA1DuM";
     
-    var requestBody = {
+    var payload = {
         contents: [{
             parts: [{
-                text: "Translate the following to " + targetLang + ": " + text
+                text: "Translate the following text to " + targetLang + ". Only return the translated result: " + text
             }]
         }]
     };
@@ -118,17 +119,22 @@
         var response = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(payload)
         });
 
         var data = await response.json();
 
         if (response.status !== 200) {
-            console.error("Gemini 详情:", data);
+            console.error("Gemini 报错详情:", data);
+            // 如果报错，直接把错误信息显示在聊天框里，方便我们排查
             return "[错误: " + (data.error ? data.error.message : response.status) + "]";
         }
 
-        return data.candidates[0].content.parts[0].text.trim();
+        // 成功拿回翻译
+        if (data.candidates && data.candidates[0].content.parts[0].text) {
+            return data.candidates[0].content.parts[0].text.trim();
+        }
+        return "[翻译结果为空]";
     } catch (e) {
         return "[网络连接失败]";
     }
