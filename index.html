@@ -172,9 +172,13 @@ select:focus {
             <option value="Korean">翻译韩文</option>
         </select>
     </div>
-    <button id="qr-btn" onclick="showQR()">扫码加入</button>
-</div>
 
+    <div style="display:flex; align-items:center; gap:10px;">
+        <span id="room-count">1人在线</span>
+        <button id="qr-btn" onclick="showQR()">扫码加入</button>
+    </div>
+</div>
+    
 <div id="chat-box"></div>
 
 <div id="controls">
@@ -196,8 +200,10 @@ select:focus {
 
     
 <script>
+<script>
     var recognition;
-    // --- 1. Firebase 配置 (保持不变) ---
+
+    // --- 1. Firebase 配置 ---
     const firebaseConfig = {
         apiKey: "AIzaSyA6PDYEk7Epsu52maMlVSzzv5f_yMkcjFg",
         authDomain: "fanyi-6e1bf.firebaseapp.com",
@@ -211,116 +217,129 @@ select:focus {
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
+
     const roomId = window.location.hash || "#room_" + Math.random().toString(36).substr(2, 5);
     window.location.hash = roomId;
-    const chatRef = database.ref('rooms/' + roomId.replace('#', ''));
+
+    const roomKey = roomId.replace('#', '');
+    const roomRef = database.ref('rooms/' + roomKey);
+    const chatRef = roomRef.child('messages');
+    const presenceRef = roomRef.child('presence');
+
     let userId = localStorage.getItem('userId');
     if (!userId) {
-    userId = 'user_' + Math.random().toString(36).slice(2) + '_' + Date.now();
-    localStorage.setItem('userId', userId);
-}
-
-// 1. 定义一个全局变量，但初始化为 null
-let currentRecognition = null;
-
-function startMic() {
-    if (currentRecognition) return;
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-        alert("浏览器不支持语音，请用 Safari 或 Chrome");
-        return;
+        userId = 'user_' + Math.random().toString(36).slice(2) + '_' + Date.now();
+        localStorage.setItem('userId', userId);
     }
 
-    // 【修复 1】如果上一个没关掉，强行关掉并清空，防止实例堆叠
-    if (currentRecognition) {
-        try { currentRecognition.stop(); } catch(e) {}
-        currentRecognition = null;
-    }
+    const myPresenceRef = presenceRef.child(userId);
+    const connectedRef = database.ref('.info/connected');
 
-    // 【修复 2】针对 iOS 强制激活音频上下文
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-
-    currentRecognition = new SpeechRecognition();
-    
-    // 确保读取的是标准代码 (如 zh-CN)，而不是中文名称
-    
-    currentRecognition.continuous = false;
-    currentRecognition.interimResults = false;
-
-    currentRecognition.onstart = function() {
-    document.getElementById('mic-btn').innerHTML = "🔴 说话中";
-};
-
-    let finalTranscript = "";
-    currentRecognition.onresult = function(event) {
-    const result = event.results[event.results.length - 1];
-
-    if (result.isFinal) {
-        finalTranscript += result[0].transcript;
-    }
-};
-
-    // 【修复 3】增加错误监听，这是抓 Bug 的核心
-    currentRecognition.onerror = function(event) {
-        console.error("❌ 语音错误:", event.error);
-        // 如果报 'network'，说明手机网络环境不支持苹果的语音云服务
-        if (event.error === 'network') {
-            alert("语音识别需要网络连接，请检查网络或尝试更换网络(5G/WiFi)");
+    connectedRef.on('value', (snap) => {
+        if (snap.val() === true) {
+            myPresenceRef.set({
+                online: true,
+                joinedAt: Date.now()
+            });
+            myPresenceRef.onDisconnect().remove();
         }
-    };
+    });
 
-    currentRecognition.onend = function() {
-    document.getElementById('mic-btn').innerHTML = "🎤";
+    presenceRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        const count = data ? Object.keys(data).length : 0;
+        const roomCountEl = document.getElementById('room-count');
+        if (roomCountEl) {
+            roomCountEl.textContent = `${count}人在线`;
+        }
+    });
 
-    if (finalTranscript) {
-        processAndSend(finalTranscript);
-        finalTranscript = "";
+    // 语音识别实例
+    let currentRecognition = null;
+
+    function startMic() {
+        if (currentRecognition) return;
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("浏览器不支持语音，请用 Safari 或 Chrome");
+            return;
+        }
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        currentRecognition = new SpeechRecognition();
+        currentRecognition.continuous = false;
+        currentRecognition.interimResults = false;
+
+        currentRecognition.onstart = function () {
+            document.getElementById('mic-btn').innerHTML = "🔴 说话中";
+        };
+
+        let finalTranscript = "";
+
+        currentRecognition.onresult = function (event) {
+            const result = event.results[event.results.length - 1];
+            if (result.isFinal) {
+                finalTranscript += result[0].transcript;
+            }
+        };
+
+        currentRecognition.onerror = function (event) {
+            console.error("❌ 语音错误:", event.error);
+            if (event.error === 'network') {
+                alert("语音识别需要网络连接，请检查网络或尝试更换网络(5G/WiFi)");
+            }
+        };
+
+        currentRecognition.onend = function () {
+            document.getElementById('mic-btn').innerHTML = "🎤";
+
+            if (finalTranscript) {
+                processAndSend(finalTranscript);
+            }
+
+            currentRecognition = null;
+        };
+
+        try {
+            currentRecognition.start();
+        } catch (e) {
+            console.log("语音启动失败:", e);
+        }
     }
 
-    currentRecognition = null;
-};
-
-    try {
-        currentRecognition.start();
-    } catch (e) {
-        console.log("语音启动失败:", e);
+    function stopMic() {
+        if (currentRecognition) {
+            currentRecognition.stop();
+            currentRecognition = null;
+        }
     }
-}
 
-function stopMic() {
-    if (currentRecognition) {
-        currentRecognition.stop();
-        currentRecognition = null;
+    function showQR() {
+        document.getElementById('qr-modal').style.display = 'flex';
+        document.getElementById('qrcode').innerHTML = "";
+        new QRCode(document.getElementById("qrcode"), window.location.href);
+        window.scrollTo(0, 0);
     }
-}
-    // --- 3. 二维码功能 (找回来了！) ---
-function showQR() {
-    // 1. 让弹窗显示出来（flex 配合上面的居中样式）
-    document.getElementById('qr-modal').style.display = 'flex';
-    // 2. 清空并生成
-    document.getElementById('qrcode').innerHTML = "";
-    new QRCode(document.getElementById("qrcode"), window.location.href);
-}
 
-    // --- 4. 翻译逻辑 (Groq API) ---
     async function translateText(text, targetLang) {
         const GROQ_API_KEY = "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";
         const url = "https://api.groq.com/openai/v1/chat/completions";
+
         const payload = {
             model: "llama-3.3-70b-versatile",
-            //自动识别语言
             messages: [
-  { 
-    role: "system", 
-    content: `You are a professional translator.
-
+                {
+                    role: "system",
+                    content: `You are a professional translator.
 1. Detect the language of the input automatically.
 2. Translate the text into ${targetLang}.
-3. Return ONLY the translated text, no explanation.` 
-  },
-  { role: "user", content: text }
-],
+3. Return ONLY the translated text, no explanation.`
+                },
+                { role: "user", content: text }
+            ],
             temperature: 0.1
         };
 
@@ -333,29 +352,34 @@ function showQR() {
                 },
                 body: JSON.stringify(payload)
             });
+
             const data = await response.json();
-            return data.choices[0].message.content.trim();
+            return data.choices?.[0]?.message?.content?.trim() || "[翻译出错]";
         } catch (e) {
             return "[翻译出错]";
         }
     }
 
-    // --- 5. 发送与消息展示 ---
     async function processAndSend(rawText) {
-        if (!rawText) return;
-        const targetValue = document.getElementById('target-lang').value; 
-        // 映射下拉框的值到 Groq 识别的语言名
-        const langMap = { "English": "English", "Chinese": "Chinese", "Korean": "Korean" };
+        if (!rawText || !rawText.trim()) return;
+
+        const targetValue = document.getElementById('target-lang').value;
+        const langMap = {
+            "English": "English",
+            "Chinese": "Chinese",
+            "Korean": "Korean"
+        };
         const targetLang = langMap[targetValue] || targetValue;
 
-        const translated = await translateText(rawText, targetLang);
-        
-    chatRef.push({
-    senderId: userId,
-    original: rawText,
-    translated: translated,
-    timestamp: Date.now()
-});
+        const translated = await translateText(rawText.trim(), targetLang);
+
+        chatRef.push({
+            senderId: userId,
+            original: rawText.trim(),
+            translated: translated,
+            timestamp: Date.now()
+        });
+    }
 
     function sendText() {
         const input = document.getElementById('text-input');
