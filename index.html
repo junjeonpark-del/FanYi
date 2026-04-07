@@ -79,10 +79,18 @@ input, select {
     font-size: 16px; /* 关键！必须是 16px，否则 iOS 点进去会突然放大画面 */
 }
 
-#text-input { 
-    flex: 1; 
-    height: 40px;
+#text-input {
+    flex: 1;
+    /* 核心修改：让输入框变窄、更精致 */
+    height: 36px; 
+    padding: 0 15px;
+    background: #333;
+    color: white;
+    border: none;
+    border-radius: 18px; /* 圆角等于高度的一半，形成完美的胶囊形状 */
+    font-size: 16px;
     outline: none;
+    box-sizing: border-box; /* 保证 padding 不会撑大总高度 */
 }
 
         
@@ -123,6 +131,21 @@ input, select {
     border-top: 1px solid rgba(255,255,255,0.2);
     padding-top: 4px;
 }
+
+    #qr-btn {
+    background: rgba(255, 255, 255, 0.1); /* 这种半透明色在深色模式下很高级 */
+    color: #00d2ff; /* 亮蓝色文字，醒目但不刺眼 */
+    border: 1px solid rgba(0, 210, 255, 0.3);
+    padding: 4px 12px;
+    border-radius: 15px; /* 胶囊形状 */
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#qr-btn:active {
+    transform: scale(0.9); /* 点击时缩小的反馈感 */
+}
     </style>
 
 </head>
@@ -142,7 +165,7 @@ input, select {
             <option value="Korean">看韩文</option>
         </select>
     </div>
-    <button onclick="showQR()" style="border-radius: 5px; font-size: 12px;">扫码加入</button>
+    <button id="qr-btn" onclick="showQR()">扫码加入</button>
 </div>
 
 <div id="chat-box"></div>
@@ -360,6 +383,11 @@ function showQR() {
         // 添加到聊天框并自动滚动到底部
         box.appendChild(msgDiv);
         box.scrollTop = box.scrollHeight;
+    });
+    document.querySelectorAll('select').forEach(sel => {
+        sel.addEventListener('touchstart', (e) => {
+            e.stopPropagation(); 
+        }, {passive: true});
     });
 </script>
 </body>
