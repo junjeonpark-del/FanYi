@@ -394,18 +394,31 @@ function showQR() {
         box.appendChild(msgDiv);
         box.scrollTop = box.scrollHeight;
     });
-// --- 5.7 彻底解决“蓝色高亮框残留”导致的闪退 ---
+// --- 5.9 针对手机 Safari 动画锁定的“暴力破解” ---
 document.querySelectorAll('select').forEach(sel => {
-    // 1. 核心：选完语言瞬间，强制让它“失焦”，杀掉蓝色框
+    // 1. 核心：在选完语言的一瞬间，强制打断系统的收起动画
     sel.addEventListener('change', function() {
-        this.blur();
+        this.blur(); // 视觉失焦
+        
+        // 【关键黑科技】利用异步 0 秒延迟，强制 Safari 在下一帧就恢复交互
+        setTimeout(() => {
+            window.scrollTo(window.scrollX, window.scrollY);
+            // 额外保险：给 body 刷一下焦点，彻底结束之前的弹窗状态
+            document.body.click(); 
+        }, 0);
     });
 
-    // 2. 辅助：触摸瞬间强制拿焦点，确保第一下点击就出菜单
+    // 2. 核心：在手指碰到右边的一瞬间，主动“清场”
     sel.addEventListener('touchstart', function(e) {
+        // 如果当前有任何东西在“活跃”状态，强行掐断它
+        if (document.activeElement && document.activeElement !== this) {
+            document.activeElement.blur();
+        }
+        // 瞬间抢占焦点
         this.focus();
-        e.stopPropagation(); 
-    }, {passive: true});
+        // 阻止冒泡，不给系统留“思考”时间
+        e.stopPropagation();
+    }, { passive: true });
 });
 </script>
 </body>
