@@ -214,6 +214,11 @@ select:focus {
     const roomId = window.location.hash || "#room_" + Math.random().toString(36).substr(2, 5);
     window.location.hash = roomId;
     const chatRef = database.ref('rooms/' + roomId.replace('#', ''));
+    let userId = localStorage.getItem('userId');
+    if (!userId) {
+    userId = 'user_' + Math.random().toString(36).slice(2) + '_' + Date.now();
+    localStorage.setItem('userId', userId);
+}
 
 // 1. 定义一个全局变量，但初始化为 null
 let currentRecognition = null;
@@ -345,13 +350,12 @@ function showQR() {
 
         const translated = await translateText(rawText, targetLang);
         
-        chatRef.push({
-            senderId: localStorage.getItem('userId') || (localStorage.setItem('userId', Date.now()), Date.now()),
-            original: rawText,
-            translated: translated,
-            timestamp: Date.now()
-        });
-    }
+    chatRef.push({
+    senderId: userId,
+    original: rawText,
+    translated: translated,
+    timestamp: Date.now()
+});
 
     function sendText() {
         const input = document.getElementById('text-input');
@@ -397,17 +401,10 @@ function showQR() {
     
 // --- 6. 实时监听新消息 (核心：让聊天动起来) ---
     chatRef.limitToLast(20).on('child_added', (snapshot) => {
-        const data = snapshot.val();
-        const box = document.getElementById('chat-box');
-        
-        // 获取或生成自己的 ID
-        let userId = localStorage.getItem('userId');
-        if (!userId) {
-            userId = Date.now().toString();
-            localStorage.setItem('userId', userId);
-        }
-        
-        const isMe = data.senderId == userId;
+    const data = snapshot.val();
+    const box = document.getElementById('chat-box');
+
+    const isMe = data.senderId === userId;
         
         // 创建消息气泡
         const msgDiv = document.createElement('div');
