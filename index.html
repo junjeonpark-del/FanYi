@@ -249,21 +249,15 @@ function startMic() {
     currentRecognition.interimResults = false;
 
     currentRecognition.onstart = function() {
-        console.log("🎤 录音正式开始...");
-        document.getElementById('mic-btn').innerHTML = "🔴";
-    };
+    document.getElementById('mic-btn').innerHTML = "🔴 说话中";
+};
 
+    let finalTranscript = "";
     currentRecognition.onresult = function(event) {
     const result = event.results[event.results.length - 1];
 
-    if (!result.isFinal) return;
-
-    const text = result[0].transcript;
-    console.log("✅ 最终结果:", text);
-
-    // ❗只有在“松开之后”才发送
-    if (!isPressing) {
-        processAndSend(text);
+    if (result.isFinal) {
+        finalTranscript += result[0].transcript;
     }
 };
 
@@ -277,10 +271,15 @@ function startMic() {
     };
 
     currentRecognition.onend = function() {
-        console.log("⏹️ 录音自然结束");
-        document.getElementById('mic-btn').innerHTML = "🎤";
-        currentRecognition = null; // 彻底释放
-    };
+    document.getElementById('mic-btn').innerHTML = "🎤";
+
+    if (finalTranscript) {
+        processAndSend(finalTranscript);
+        finalTranscript = "";
+    }
+
+    currentRecognition = null;
+};
 
     try {
         currentRecognition.start();
@@ -453,18 +452,15 @@ const micBtn = document.getElementById('mic-btn');
 
 let isPressing = false;
 
-// 👉 按下开始录音
-micBtn.addEventListener('touchstart', (e) => {
-    e.preventDefault(); // 防止误触
-    isPressing = true;
-    startMic();
-});
+    //开始录音，结束录音
+const micBtn = document.getElementById('mic-btn');
 
-// 👉 松开结束录音 + 发送
-micBtn.addEventListener('touchend', (e) => {
-    e.preventDefault();
-    isPressing = false;
-    stopMic(); // 结束后会自动触发 onresult
+micBtn.addEventListener('click', () => {
+    if (currentRecognition) {
+        stopMic();  // 再点一次 = 结束
+    } else {
+        startMic(); // 第一次 = 开始
+    }
 });
 
 // 👉 防止手指滑出按钮导致卡住
