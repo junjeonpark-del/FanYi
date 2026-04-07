@@ -146,6 +146,16 @@ input, select {
 #qr-btn:active {
     transform: scale(0.9); /* 点击时缩小的反馈感 */
 }
+        /* 彻底清除选择框的蓝色高亮和残留干扰 */
+select {
+    outline: none !important; /* 强制去掉所有边框线 */
+    -webkit-tap-highlight-color: transparent; /* 去掉 Safari 点击时的灰色/蓝色阴影 */
+}
+
+select:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
     </style>
 
 </head>
@@ -384,11 +394,19 @@ function showQR() {
         box.appendChild(msgDiv);
         box.scrollTop = box.scrollHeight;
     });
-    document.querySelectorAll('select').forEach(sel => {
-        sel.addEventListener('touchstart', (e) => {
-            e.stopPropagation(); 
-        }, {passive: true});
+// --- 5.7 彻底解决“蓝色高亮框残留”导致的闪退 ---
+document.querySelectorAll('select').forEach(sel => {
+    // 1. 核心：选完语言瞬间，强制让它“失焦”，杀掉蓝色框
+    sel.addEventListener('change', function() {
+        this.blur();
     });
+
+    // 2. 辅助：触摸瞬间强制拿焦点，确保第一下点击就出菜单
+    sel.addEventListener('touchstart', function(e) {
+        this.focus();
+        e.stopPropagation(); 
+    }, {passive: true});
+});
 </script>
 </body>
 </html>
