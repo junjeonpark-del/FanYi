@@ -167,10 +167,13 @@ select:focus {
     <div>
         <span> 自动识别输入语言 </span>
         <select id="target-lang">
-            <option value="English">翻译英文</option>
-            <option value="Chinese">翻译中文</option>
-            <option value="Korean">翻译韩文</option>
-        </select>
+    <option value="English">翻译英文</option>
+    <option value="Chinese">翻译中文</option>
+    <option value="Korean">翻译韩文</option>
+    <option value="Uzbek">翻译乌兹别克语</option>
+    <option value="Vietnamese">翻译越南语</option>
+    <option value="Mongolian">翻译蒙古语</option>
+</select>
     </div>
 
     <div style="display:flex; align-items:center; gap:10px;">
@@ -382,10 +385,13 @@ function showQR() {
 
         const targetValue = document.getElementById('target-lang').value;
         const langMap = {
-            "English": "English",
-            "Chinese": "Chinese",
-            "Korean": "Korean"
-        };
+    "English": "English",
+    "Chinese": "Chinese",
+    "Korean": "Korean",
+    "Uzbek": "Uzbek",
+    "Vietnamese": "Vietnamese",
+    "Mongolian": "Mongolian"
+};
         const targetLang = langMap[targetValue] || targetValue;
 
         const translated = await translateText(rawText.trim(), targetLang);
