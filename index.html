@@ -226,47 +226,70 @@ select:focus {
     window.location.hash = roomId;
     const chatRef = database.ref('rooms/' + roomId.replace('#', ''));
 
-   // --- 2. 语音识别 (适配 Safari + 修复双重发送) ---
+// 1. 定义一个全局变量，但初始化为 null
+let currentRecognition = null;
 
 function startMic() {
-    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
         alert("浏览器不支持语音，请用 Safari 或 Chrome");
         return;
     }
 
-    // 【关键】每次按下按钮都重新创建录音机，Safari 才会听话
-    recognition = new SpeechRecognition();
-    recognition.lang = document.getElementById('my-lang').value;
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    // 【修复 1】如果上一个没关掉，强行关掉并清空，防止实例堆叠
+    if (currentRecognition) {
+        try { currentRecognition.stop(); } catch(e) {}
+        currentRecognition = null;
+    }
 
-    // 录音开始
-    recognition.onstart = function() {
+    // 【修复 2】针对 iOS 强制激活音频上下文
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    currentRecognition = new SpeechRecognition();
+    
+    // 确保读取的是标准代码 (如 zh-CN)，而不是中文名称
+    currentRecognition.lang = document.getElementById('my-lang').value;
+    currentRecognition.continuous = false;
+    currentRecognition.interimResults = false;
+
+    currentRecognition.onstart = function() {
+        console.log("🎤 录音正式开始...");
         document.getElementById('mic-btn').innerHTML = "🔴";
     };
 
-    // 录音结果：只把字写进输入框，不自动发送
-    recognition.onresult = function(event) {
-        var text = event.results[0][0].transcript;
+    currentRecognition.onresult = function(event) {
+        const text = event.results[0][0].transcript;
+        console.log("✅ 抓到文字:", text);
         document.getElementById('text-input').value = text;
     };
 
-    // 录音结束
-    recognition.onend = function() {
+    // 【修复 3】增加错误监听，这是抓 Bug 的核心
+    currentRecognition.onerror = function(event) {
+        console.error("❌ 语音错误:", event.error);
+        // 如果报 'network'，说明手机网络环境不支持苹果的语音云服务
+        if (event.error === 'network') {
+            alert("语音识别需要网络连接，请检查网络或尝试更换网络(5G/WiFi)");
+        }
+    };
+
+    currentRecognition.onend = function() {
+        console.log("⏹️ 录音自然结束");
         document.getElementById('mic-btn').innerHTML = "🎤";
+        currentRecognition = null; // 彻底释放
     };
 
     try {
-        recognition.start();
+        currentRecognition.start();
     } catch (e) {
         console.log("语音启动失败:", e);
     }
 }
 
 function stopMic() {
-    if (recognition) {
-        recognition.stop();
+    if (currentRecognition) {
+        currentRecognition.stop();
+        currentRecognition = null;
     }
 }
     // --- 3. 二维码功能 (找回来了！) ---
