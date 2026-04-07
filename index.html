@@ -164,16 +164,26 @@ select:focus {
 <body>
 
 <div id="header">
-    <div>
-        <span> 自动识别输入语言 </span>
+    <div style="display:flex; align-items:center; gap:8px;">
+
+        <!-- ✅ 新加的 UI语言选择 -->
+        <select id="ui-lang" onchange="changeUILanguage()">
+            <option value="zh">中文</option>
+            <option value="en">EN</option>
+            <option value="ko">KO</option>
+        </select>
+
+        <!-- 原有内容 -->
+        <span id="auto-detect-label">自动识别输入语言</span>
+
         <select id="target-lang">
-    <option value="English">翻译英文</option>
-    <option value="Chinese">翻译中文</option>
-    <option value="Korean">翻译韩文</option>
-    <option value="Uzbek">翻译乌兹别克语</option>
-    <option value="Vietnamese">翻译越南语</option>
-    <option value="Mongolian">翻译蒙古语</option>
-</select>
+            <option value="English">翻译英文</option>
+            <option value="Chinese">翻译中文</option>
+            <option value="Korean">翻译韩文</option>
+            <option value="Uzbek">翻译乌兹别克语</option>
+            <option value="Vietnamese">翻译越南语</option>
+            <option value="Mongolian">翻译蒙古语</option>
+        </select>
     </div>
 
     <div style="display:flex; align-items:center; gap:10px;">
@@ -197,8 +207,16 @@ select:focus {
             background:rgba(0,0,0,0.8); z-index:9999; justify-content:center; align-items:center; flex-direction:column;">
     
     <div id="qrcode" style="background: white; padding: 20px; border-radius: 10px;"></div>
-    <p style="margin-top: 20px; color: white; font-weight: bold;">让对方扫码加入房间</p>
-    <p style="color: #ccc; font-size: 12px;">(点击屏幕任何地方关闭)</p>
+
+    <!-- 👇 加 id -->
+    <p id="qr-title" style="margin-top: 20px; color: white; font-weight: bold;">
+        让对方扫码加入房间
+    </p>
+
+    <!-- 👇 加 id -->
+    <p id="qr-close-text" style="color: #ccc; font-size: 12px;">
+        (点击屏幕任何地方关闭)
+    </p>
 </div>
 
 <script>
@@ -247,17 +265,107 @@ select:focus {
     });
 
     presenceRef.on('value', (snapshot) => {
-        const data = snapshot.val();
-        const count = data ? Object.keys(data).length : 0;
-        const roomCountEl = document.getElementById('room-count');
-        if (roomCountEl) {
-            roomCountEl.textContent = `${count}人在线`;
-        }
-    });
+    const data = snapshot.val();
+    onlineCount = data ? Object.keys(data).length : 0;
+    updateRoomCountText();
+});
 
     // 语音识别实例
     let currentRecognition = null;
+const uiText = {
+    zh: {
+        autoDetect: "自动识别输入语言",
+        translateEnglish: "翻译英文",
+        translateChinese: "翻译中文",
+        translateKorean: "翻译韩文",
+        translateUzbek: "翻译乌兹别克语",
+        translateVietnamese: "翻译越南语",
+        translateMongolian: "翻译蒙古语",
+        inputPlaceholder: "输入文字...",
+        joinByQR: "扫码加入",
+        qrTitle: "让对方扫码加入房间",
+        qrClose: "(点击屏幕任何地方关闭)",
+        peopleOnline: "人在线"
+    },
+    en: {
+        autoDetect: "Auto-detect input language",
+        translateEnglish: "Translate to English",
+        translateChinese: "Translate to Chinese",
+        translateKorean: "Translate to Korean",
+        translateUzbek: "Translate to Uzbek",
+        translateVietnamese: "Translate to Vietnamese",
+        translateMongolian: "Translate to Mongolian",
+        inputPlaceholder: "Type a message...",
+        joinByQR: "Join by QR",
+        qrTitle: "Let the other person scan to join the room",
+        qrClose: "(Tap anywhere to close)",
+        peopleOnline: "online"
+    },
+    ko: {
+        autoDetect: "입력 언어 자동 인식",
+        translateEnglish: "영어로 번역",
+        translateChinese: "중국어로 번역",
+        translateKorean: "한국어로 번역",
+        translateUzbek: "우즈벡어로 번역",
+        translateVietnamese: "베트남어로 번역",
+        translateMongolian: "몽골어로 번역",
+        inputPlaceholder: "문자를 입력하세요...",
+        joinByQR: "QR로 참여",
+        qrTitle: "상대방의 QR을 스캔하여 채팅방에 참여하세요",
+        qrClose: "(화면 아무 곳이나 터치하면 닫힘)",
+        peopleOnline: "명 접속 중"
+    }
+};
 
+let currentUILang = localStorage.getItem('uiLang') || 'zh';
+let onlineCount = 1;
+
+    function changeUILanguage() {
+    const lang = document.getElementById('ui-lang').value;
+    currentUILang = lang;
+    localStorage.setItem('uiLang', lang);
+    applyUILanguage(lang);
+}
+
+function applyUILanguage(lang) {
+    const t = uiText[lang];
+
+    document.getElementById('auto-detect-label').textContent = t.autoDetect;
+    document.getElementById('text-input').placeholder = t.inputPlaceholder;
+    document.getElementById('qr-btn').textContent = t.joinByQR;
+
+    const qrTitle = document.getElementById('qr-title');
+    const qrCloseText = document.getElementById('qr-close-text');
+
+    if (qrTitle) qrTitle.textContent = t.qrTitle;
+    if (qrCloseText) qrCloseText.textContent = t.qrClose;
+
+    const targetLang = document.getElementById('target-lang');
+    if (targetLang && targetLang.options.length >= 6) {
+        targetLang.options[0].text = t.translateEnglish;
+        targetLang.options[1].text = t.translateChinese;
+        targetLang.options[2].text = t.translateKorean;
+        targetLang.options[3].text = t.translateUzbek;
+        targetLang.options[4].text = t.translateVietnamese;
+        targetLang.options[5].text = t.translateMongolian;
+    }
+
+    updateRoomCountText();
+}
+
+function updateRoomCountText() {
+    const roomCountEl = document.getElementById('room-count');
+    if (!roomCountEl) return;
+
+    const t = uiText[currentUILang];
+
+    if (currentUILang === 'ko') {
+        roomCountEl.textContent = `${onlineCount}${t.peopleOnline}`;
+    } else {
+        roomCountEl.textContent = `${onlineCount} ${t.peopleOnline}`;
+    }
+}
+    
     function startMic() {
         if (currentRecognition) return;
 
@@ -505,6 +613,18 @@ micBtn.addEventListener('touchcancel', () => {
     isPressing = false;
     stopMic();
 });
+
+    window.addEventListener('load', () => {
+    // 设置下拉框选中状态
+    const uiLangSelect = document.getElementById('ui-lang');
+    if (uiLangSelect) {
+        uiLangSelect.value = currentUILang;
+    }
+
+    // 应用界面语言
+    applyUILanguage(currentUILang);
+});
+    
 </script>
 </body>
 </html>
