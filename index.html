@@ -254,13 +254,17 @@ function startMic() {
     };
 
     currentRecognition.onresult = function(event) {
-    const text = event.results[0][0].transcript;
-    console.log("✅ 抓到文字:", text);
+    const result = event.results[event.results.length - 1];
 
-    document.getElementById('text-input').value = text;
+    if (!result.isFinal) return;
 
-    // ✅ 自动发送
-    processAndSend(text);
+    const text = result[0].transcript;
+    console.log("✅ 最终结果:", text);
+
+    // ❗只有在“松开之后”才发送
+    if (!isPressing) {
+        processAndSend(text);
+    }
 };
 
     // 【修复 3】增加错误监听，这是抓 Bug 的核心
@@ -445,7 +449,29 @@ document.querySelectorAll('select').forEach(sel => {
     }, { passive: true });
 });
     // 麦克风绑定事件，语音识别
- document.getElementById('mic-btn').addEventListener('click', startMic);
+const micBtn = document.getElementById('mic-btn');
+
+let isPressing = false;
+
+// 👉 按下开始录音
+micBtn.addEventListener('touchstart', (e) => {
+    e.preventDefault(); // 防止误触
+    isPressing = true;
+    startMic();
+});
+
+// 👉 松开结束录音 + 发送
+micBtn.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    isPressing = false;
+    stopMic(); // 结束后会自动触发 onresult
+});
+
+// 👉 防止手指滑出按钮导致卡住
+micBtn.addEventListener('touchcancel', () => {
+    isPressing = false;
+    stopMic();
+});
 </script>
 </body>
 </html>
