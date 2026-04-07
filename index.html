@@ -8,14 +8,14 @@
     <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-/* 1. 核心修正：锁定全屏，防止 iOS 橡皮筋乱跳 */
+/* 1. 核心修正：锁定全屏，并允许 JS 动态改高度 */
 html, body {
     height: 100%;
     width: 100%;
     margin: 0;
     padding: 0;
-    overflow: hidden; /* 严禁全身滚动 */
-    position: fixed;  /* 移动端锁死视口的黑科技 */
+    overflow: hidden; 
+    position: fixed;  /* 锁死视口，不让网页乱飘 */
 }
 
 body {
@@ -24,6 +24,8 @@ body {
     background-color: #121212;
     color: white;
     font-family: sans-serif;
+    /* 关键：增加这一行，让 body 高度可以被键盘顶上去 */
+    transition: height 0.1s ease-out; 
 }
 
 /* 2. 头部：高度固定 */
@@ -42,23 +44,29 @@ body {
 #chat-box {
     flex: 1; 
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch; /* 让 iOS 滚动像丝一样顺滑 */
+    -webkit-overflow-scrolling: touch; /* iOS 丝滑滚动 */
     padding: 15px;
     display: flex;
     flex-direction: column;
     gap: 10px;
+    /* 【核心修正】防止键盘弹出时内容溢出或滚动条失效 */
+    overscroll-behavior-y: contain; 
 }
 
-/* 4. 底部输入区：永远贴地，适配全面屏 */
+/* 4. 底部输入区：永远贴地，适配键盘弹出 */
 #controls {
     padding: 10px;
-    padding-bottom: env(safe-area-inset-bottom); /* 适配 iPhone 底部小横条 */
+    /* 核心：确保在 iPhone 这种全面屏底部有足够间距，不被小横条挡住 */
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
     background: #1f1f1f;
     border-top: 1px solid #333;
     display: flex;
     gap: 8px;
     align-items: center;
-    flex-shrink: 0; /* 键盘弹出时，它是主力，不能被挤扁 */
+    /* 关键：键盘弹出时高度绝对不缩水，不消失 */
+    flex-shrink: 0; 
+    /* 确保它永远浮在聊天内容上方 */
+    z-index: 100;
 }
 
 /* 5. 输入框：防止 iOS 自动放大 */
@@ -288,25 +296,30 @@ function showQR() {
         input.value = "";
     }
 
-// --- 5.5 解决移动端键盘遮挡的“黑科技” ---
-const inputField = document.getElementById('text-input');
-const chatBox = document.getElementById('chat-box');
-
-if (inputField && chatBox) {
-    // 当点击输入框（聚焦）时
-    inputField.addEventListener('focus', () => {
-        // 给键盘弹出留出 300 毫秒的时间
+// --- 5.5 解决移动端键盘遮挡的“终极黑科技” ---
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => {
+        // 1. 获取键盘弹起后，真正能看到的屏幕高度
+        const vh = window.visualViewport.height;
+        
+        // 2. 核心：强制 body 的高度等于这个可视高度
+        // 这样底部的 #controls 就会像坐电梯一样被顶到键盘上方
+        document.body.style.height = vh + 'px';
+        
+        // 3. 让聊天框自动滚到底部看最新消息
         setTimeout(() => {
-            // 1. 强制聊天框滚到底部，看到最新消息
-            chatBox.scrollTop = chatBox.scrollHeight;
-            // 2. 核心：防止 iOS 整体页面偏移，强制视口复位
+            const box = document.getElementById('chat-box');
+            if (box) box.scrollTop = box.scrollHeight;
+            // 解决 iOS 视口偏移导致点击失效的问题
             window.scrollTo(0, 0);
-        }, 300);
+        }, 100);
     });
 
-    // 当输入框失去焦点（键盘收起）时
-    inputField.addEventListener('blur', () => {
-        window.scrollTo(0, 0);
+    // 针对 iOS 的补充：点击输入框时强制再触发一次
+    document.getElementById('text-input').addEventListener('focus', () => {
+        setTimeout(() => {
+            window.scrollTo(0, 0);
+        }, 300);
     });
 }
 
