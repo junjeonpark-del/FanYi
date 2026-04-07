@@ -187,13 +187,7 @@ select:focus {
            onkeypress="if(event.key==='Enter') sendText()" 
            inputmode="search">
            
-    <button id="mic-btn" 
-            onmousedown="startMic()" 
-            onmouseup="stopMic()" 
-            ontouchstart="event.preventDefault(); startMic();" 
-            ontouchend="stopMic()">
-        🎤
-    </button>
+<button id="mic-btn">🎤</button>
 </div>
 
 <div id="qr-modal" onclick="this.style.display='none'" 
@@ -444,6 +438,34 @@ document.querySelectorAll('select').forEach(sel => {
         // 阻止冒泡，不给系统留“思考”时间
         e.stopPropagation();
     }, { passive: true });
+});
+    const micBtn = document.getElementById('mic-btn');
+
+// --- 5.10 手机端长按交互“唯一”真理方案 ---
+
+// 1. 彻底禁用系统的长按菜单（防止弹出“拷贝/粘贴”）
+micBtn.addEventListener('contextmenu', e => e.preventDefault());
+
+// 2. 使用 Pointer 事件：它能自动识别手指或鼠标，且绝不会重复触发
+micBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    
+    // 关键：点击瞬间强行让输入框失去焦点，防止键盘弹起收回干扰语音
+    document.activeElement.blur(); 
+    
+    console.log("👉 检测到按下，准备启动...");
+    startMic(); // 调用你之前的启动函数
+});
+
+micBtn.addEventListener('pointerup', (e) => {
+    e.preventDefault();
+    console.log("✋ 检测到松开，准备停止...");
+    stopMic(); // 调用你之前的停止函数
+});
+
+// 3. 增加保险：如果手指划出按钮范围，也自动停止，防止录音关不掉
+micBtn.addEventListener('pointerleave', (e) => {
+    stopMic();
 });
 </script>
 </body>
