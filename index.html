@@ -317,12 +317,31 @@ select:focus {
         }
     }
 
-    function showQR() {
-        document.getElementById('qr-modal').style.display = 'flex';
-        document.getElementById('qrcode').innerHTML = "";
-        new QRCode(document.getElementById("qrcode"), window.location.href);
-        window.scrollTo(0, 0);
+function showQR() {
+    const modal = document.getElementById('qr-modal');
+    const qrBox = document.getElementById('qrcode');
+
+    if (!modal || !qrBox) {
+        alert('二维码容器不存在');
+        return;
     }
+
+    modal.style.display = 'flex';
+    qrBox.innerHTML = '';
+
+    try {
+        new QRCode(qrBox, {
+            text: window.location.href,
+            width: 220,
+            height: 220
+        });
+    } catch (e) {
+        console.error('二维码生成失败:', e);
+        alert('二维码生成失败，请看控制台');
+    }
+
+    window.scrollTo(0, 0);
+}
 
     async function translateText(text, targetLang) {
         const GROQ_API_KEY = "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";
@@ -412,15 +431,6 @@ if (window.visualViewport) {
             window.scrollTo(0, 0);
         }, 300);
     });
-}
-
-// 修改你原来的 showQR 函数，增加一个复位指令
-function showQR() {
-    document.getElementById('qr-modal').style.display = 'flex';
-    document.getElementById('qrcode').innerHTML = "";
-    new QRCode(document.getElementById("qrcode"), window.location.href);
-    // 弹出二维码时也确保页面不乱跳
-    window.scrollTo(0, 0);
 }
     
 // --- 6. 实时监听新消息 (核心：让聊天动起来) ---
